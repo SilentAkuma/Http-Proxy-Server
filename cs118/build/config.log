@@ -1,0 +1,78 @@
+# project  configured on Sat Feb  1 19:28:44 2014 by
+# waf 1.6.11 (abi 98, python 20605f0 on linux2)
+# using ./waf configure
+#
+----------------------------------------
+Setting top to
+/home/alvin/CS118/cs118-project1
+----------------------------------------
+Setting out to
+/home/alvin/CS118/cs118-project1/build
+----------------------------------------
+Checking for 'gcc' (c compiler)
+find program=['gcc', 'cc'] paths=['/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games'] var='CC' -> '/usr/bin/gcc'
+find program=['ar'] paths=['/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games'] var='AR' -> '/usr/bin/ar'
+/usr/bin/gcc
+----------------------------------------
+Checking for 'g++' (c++ compiler)
+find program=['g++', 'c++'] paths=['/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games'] var='CXX' -> '/usr/bin/g++'
+(tool ar is already loaded, skipping)
+/usr/bin/g++
+----------------------------------------
+Checking for header string.h
+==>
+#include <string.h>
+
+int main() {
+	return 0;
+}
+
+<==
+[1/2] [32mcxx: build/.conf_check_b141d776b4c9931d133a367f1bba2bac/test.cpp -> build/.conf_check_b141d776b4c9931d133a367f1bba2bac/testbuild/test.cpp.1.o
+[0m
+['/usr/bin/g++', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
+[2/2] [33mcxxprogram: build/.conf_check_b141d776b4c9931d133a367f1bba2bac/testbuild/test.cpp.1.o -> build/.conf_check_b141d776b4c9931d133a367f1bba2bac/testbuild/testprog
+[0m
+['/usr/bin/g++', 'test.cpp.1.o', '-o', '/home/alvin/CS118/cs118-project1/build/.conf_check_b141d776b4c9931d133a367f1bba2bac/testbuild/testprog', '-Wl,-Bstatic', '-Wl,-Bdynamic']
+yes
+----------------------------------------
+Checking for function memmem
+==>
+#include <string.h>
+
+	int main() {
+	void *p;
+	p=(void*)(memmem);
+	return 0;
+}
+
+<==
+[1/2] [32mcxx: build/.conf_check_af718a5c28161c7ecc5532867b677e33/test.cpp -> build/.conf_check_af718a5c28161c7ecc5532867b677e33/testbuild/test.cpp.1.o
+[0m
+['/usr/bin/g++', '-DHAVE_STRING_H=1', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
+[2/2] [33mcxxprogram: build/.conf_check_af718a5c28161c7ecc5532867b677e33/testbuild/test.cpp.1.o -> build/.conf_check_af718a5c28161c7ecc5532867b677e33/testbuild/testprog
+[0m
+['/usr/bin/g++', 'test.cpp.1.o', '-o', '/home/alvin/CS118/cs118-project1/build/.conf_check_af718a5c28161c7ecc5532867b677e33/testbuild/testprog', '-Wl,-Bstatic', '-Wl,-Bdynamic']
+yes
+----------------------------------------
+Checking for function stpncpy
+==>
+#include <string.h>
+
+	int main() {
+	void *p;
+	p=(void*)(stpncpy);
+	return 0;
+}
+
+<==
+[1/2] [32mcxx: build/.conf_check_2efa5c7b297dfc512e5851df5dbe1f80/test.cpp -> build/.conf_check_2efa5c7b297dfc512e5851df5dbe1f80/testbuild/test.cpp.1.o
+[0m
+['/usr/bin/g++', '-DHAVE_STRING_H=1', '-DHAVE_MEMMEM=1', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
+[2/2] [33mcxxprogram: build/.conf_check_2efa5c7b297dfc512e5851df5dbe1f80/testbuild/test.cpp.1.o -> build/.conf_check_2efa5c7b297dfc512e5851df5dbe1f80/testbuild/testprog
+[0m
+['/usr/bin/g++', 'test.cpp.1.o', '-o', '/home/alvin/CS118/cs118-project1/build/.conf_check_2efa5c7b297dfc512e5851df5dbe1f80/testbuild/testprog', '-Wl,-Bstatic', '-Wl,-Bdynamic']
+yes
+----------------------------------------
+Checking boost includes
+from /home/alvin/CS118/cs118-project1: headers not found, please provide a --boost-includes argument (see help)
