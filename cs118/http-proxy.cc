@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include <sys/select.h>
+#include <sys/poll.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <string.h>
@@ -74,6 +74,7 @@ int getConnection(int socket)
 // Read request from connected socket
 // Input connected socket, buffer, amount to read
 // Return bytes read
+/*
 int readRequest(int socket, char *buf, int numChars)
 {
   int charCount = 0;
@@ -84,40 +85,62 @@ int readRequest(int socket, char *buf, int numChars)
   cerr << charCount << endl;
   return charCount;
 }
+*/
 
 // Read request from connected socket
 // Input connected socket, buffer, amount to read
 // Return bytes read
-int readResponse(int socket, char *buf, int numChars)
+int readData(int socket, char *buf, int numChars)
 {
-  fd_set fd;
-  struct timeval timeout;
+  struct pollfd pfd[1];
+  int timeout = 2000; //2 second timeout
   int n, ready;
   int charCount = 0;
   int charsRead = 0;
   
-  // Set up select
-  FD_ZERO(&fd);
-  FD_SET(socket, &fd);
-  n = socket + 1;
-  timeout.tv_sec = 1;
-  timeout.tv_usec = 500000;
+  // Clear buffer
+  memset(buf, 0, numChars);
+
+  // Set up poll
+  pfd[0].fd = socket;
+  pfd[0].events = POLLIN;
+  n = 1;
 
   // Read until timeout
   while(charCount < numChars){
-    if((ready = select(n, &fd, NULL, NULL, &timeout)) < 0) {
-      perror("select");
+    if((ready = poll(pfd, 1, timeout)) < 0) {
+      perror("poll");
       return(-1);
     }
     else if(ready == 0)
       return(charCount);
-    if((charsRead = read(socket, buf, numChars-charCount)) > 0) {
-      charCount += charsRead;
-      buf += charsRead;
-      cerr << charCount << endl;
+    else {
+      if(pfd[0].revents & POLLHUP) {
+        cerr << "HANGUP" << endl;
+        break;
+      }
+      if(pfd[0].revents & POLLNVAL) {
+        cerr << "NVAL" << endl;
+        break;
+      }
+      if(pfd[0].revents & POLLERR) {
+        cerr << "ERR" << endl;
+        break;
+      }
+      if(pfd[0].revents & POLLIN) {
+        cerr << "TRYING TO READ" << endl;
+        if((charsRead = recv(socket, buf, numChars-charCount, 0)) >= 0) {
+          if(charsRead == 0)
+            break;
+          charCount += charsRead;
+          buf += charsRead;
+          cerr << charCount << endl;
+          //cerr << (buf-charCount) << endl;
+        }
+        else
+          return(-1);
+      }
     }
-    else
-      return(-1);
   }
   return charCount;
 }
@@ -134,7 +157,7 @@ int writeData(int socket, char *buf, int numChars)
     if((charsWritten = send(socket, buf, numChars-charCount, 0)) > 0) {
       charCount += charsWritten;
       buf += charsWritten;
-      cerr << charCount << endl;
+      cerr << "charCount: " << charCount << endl;
     }
     else if(charsWritten < 0)
       return(-1);
@@ -165,7 +188,7 @@ int callSocket(HttpRequest request)
   if((remoteSocket = socket(hp->h_addrtype, SOCK_STREAM, 0)) < 0)
     return(-1);
   
-  if(connect(remoteSocket,(struct sockaddr *) &sa, sizeof(struct sockaddr_in)) < 0){
+  if(connect(remoteSocket,(struct sockaddr *) &sa, sizeof(struct sockaddr_in)) < 0) {
     close(remoteSocket);
     return(-1);
   }
@@ -185,8 +208,17 @@ void processConnection(int socket)
   HttpResponse response;
   int remoteSocket;
 
+  // Set up poll
+  struct pollfd pfd[1];
+  int timeout;
+  int n, ready;
+  pfd[0].fd = socket;
+  pfd[0].events = POLLIN;
+  n = 1;
+  timeout = 10000; //timeout after 10 seconds
+
   // Read request from socket
-  if((bytesRead = readRequest(socket, reqInBuf, MAXBUFFERSIZE)) < 0){
+  if((bytesRead = readData(socket, reqInBuf, MAXBUFFERSIZE)) < 0) {
     close(socket);
     exit(1);
   }
@@ -199,14 +231,16 @@ void processConnection(int socket)
 
   // Forward http request to remote server
   remoteSocket = callSocket(request);
-  if(writeData(remoteSocket, reqOutBuf, reqLen) < 0){
+  if(writeData(remoteSocket, reqOutBuf, reqLen) < 0) {
     close(remoteSocket);
+    close(socket);
     exit(1);
   }
-  
+
   // Read response
-  if((bytesRead = readResponse(remoteSocket, respInBuf, MTU)) < 0){
+  if((bytesRead = readData(remoteSocket, respInBuf, MTU)) < 0) {
     close(remoteSocket);
+    close(socket);
     exit(1);
   }
   cerr << respInBuf;
@@ -214,8 +248,61 @@ void processConnection(int socket)
   // Send response to client
   if(writeData(socket, respInBuf, bytesRead) < 0) {
     close(remoteSocket);
+    close(socket);
     exit(1);
   }
+  
+  // Handle Persistent connection
+  // Wait for new request
+  while((ready = poll(pfd, 1, timeout)) > 0) {
+    if(ready == -1) {
+      perror("poll");
+    }
+    else if(ready == 0) // Timed out
+      break;
+    if(pfd[0].revents & POLLHUP) { // Client hung up
+      close(socket);
+      break;
+    }
+    if((bytesRead = readData(socket, reqInBuf, MAXBUFFERSIZE)) < 0) {
+      close(socket);
+      exit(1);
+    }
+    if(bytesRead == 0)
+       break;
+    // Read http request
+    request.ParseRequest(reqInBuf, bytesRead);
+    size_t reqLen = request.GetTotalLength();
+    reqOutBuf = new char[reqLen];
+    request.FormatRequest(reqOutBuf);
+    cerr << reqOutBuf;
+
+    // Forward http request to remote server
+    if(writeData(remoteSocket, reqOutBuf, reqLen) < 0) {
+      close(remoteSocket);
+      close(socket);
+      exit(1);
+    }
+    
+    // Read response
+    if((bytesRead = readData(remoteSocket, respInBuf, MTU)) < 0) {
+      close(remoteSocket);
+      close(socket);
+      exit(1);
+    }
+    cerr << "bytesRead: " << bytesRead << endl;
+    cerr << respInBuf;
+
+    // Send response to client
+    if(writeData(socket, respInBuf, bytesRead) < 0) {
+      close(remoteSocket);
+      close(socket);
+      exit(1);
+    }
+  }
+  cerr << "OUT" << endl;
+  close(socket);
+  close(remoteSocket);
 }
 
 /* UTILITY FUNCTIONS */
